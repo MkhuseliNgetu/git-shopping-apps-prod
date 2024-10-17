@@ -1,0 +1,9 @@
+{
+  "profiles": {
+    "git_shopping_apps_prod": {
+      "commandName": "Project",
+      "commandLineArgs": "--port 7121",
+      "launchBrowser": false
+    }
+  }
+}
