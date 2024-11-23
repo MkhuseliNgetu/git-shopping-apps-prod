@@ -27,7 +27,7 @@ namespace SyanStudios.gitshoppingappsprod.registration
 
     public static class git_shopping_apps_prod_main_registration
     {
-        public static IDictionary<string, byte> UA = new Dictionary<string, byte>();
+        
         private static readonly string AtlasDBConnectionString = Environment.GetEnvironmentVariable("ConnectionStrings:NoSQLConnectionString");
         private static MongoClient MongoDBClient;
         public static IMongoDatabase NightCityLab;
@@ -45,8 +45,9 @@ namespace SyanStudios.gitshoppingappsprod.registration
             IDictionary<string, string> UserRegistrationAttempts = req.GetQueryParameterDictionary();
 
             //HTTP Request Bodies
-            string UserName = FormData["Username"];
-            string PassCode = FormData["Passcode"];
+            Clients TrialClient = new Clients();
+            TrialClient.UserName = FormData["Username"];
+            TrialClient.PassCode = FormData["Passcode"];
 
             //Default Credential Sizes
             int MinUsernameLength = 5;
@@ -55,27 +56,31 @@ namespace SyanStudios.gitshoppingappsprod.registration
             //The body of what is being sent back to users.
             string ResponseMessage = "";
 
-            if (UserName.Length >= MinUsernameLength && PassCode.Length >= MinPasscodeLength) {
+            if (TrialClient.UserName != null && TrialClient.PassCode != null) 
+            {
 
                 //Password Security
-                var SCREPassCode = BCr.BCrypt.HashPassword(PassCode);
+                var EncryptionType = BCr.HashType.SHA256;
+                int SaltRounds = 10;
+                var DefaultSalt = BCr.BCrypt.GenerateSalt(15);
+                var SCREPassCode = BCr.BCrypt.HashPassword(TrialClient.PassCode, DefaultSalt);
 
                 //Databases
                 MongoDBClient = new MongoClient(AtlasDBConnectionString);
                 NightCityLab = MongoDBClient.GetDatabase("NightCityLab");
                 NCLCollection = NightCityLab.GetCollection<BsonDocument>("Clients");
 
-                BsonDocument NewClient = new BsonDocument { { "_id", ObjectId.GenerateNewId() }, { "ClientUsername", UserName }, { "ClientPasscode", PassCode } };
+                BsonDocument NewClient = new BsonDocument { { "_id", ObjectId.GenerateNewId() }, { "ClientUsername", TrialClient.UserName }, { "ClientPasscode", SCREPassCode } };
 
                 var ExistingUserFilter = Builders<BsonDocument>.Filter;
-                var ExistingUserQuery = ExistingUserFilter.Eq("ClientUsername", UserName);
+                var ExistingUserQuery = ExistingUserFilter.Eq("ClientUsername", TrialClient.UserName);
 
                 var SearchOutcome = NCLCollection.Find(ExistingUserQuery).FirstOrDefault();
 
                 if (SearchOutcome != null)
                 {
                     ResponseMessage = "Error: Incorrect Username/Password.";
-                    UserRegistrationAttempts.Add(UserName, PassCode);
+                    UserRegistrationAttempts.Add(TrialClient.UserName, TrialClient.PassCode);
 
                     if(UserRegistrationAttempts.Count == 3)
                     {
@@ -96,13 +101,13 @@ namespace SyanStudios.gitshoppingappsprod.registration
 
 
             }
-            else if((UserName.Length < MinUsernameLength && string.IsNullOrWhiteSpace(UserName)) || UserName.Length < MinUsernameLength){
+            else if((TrialClient.UserName.Length < MinUsernameLength && string.IsNullOrWhiteSpace(TrialClient.UserName)) || TrialClient.UserName.Length < MinUsernameLength){
                      ResponseMessage = "Username you entered is too short and/or contains whitespaces."+"\n"+
                                         "Please re-enter a username in accordance to the guidelines.";
 
                      return new BadRequestObjectResult(ResponseMessage);
 
-            }else if((PassCode.Length < MinPasscodeLength && string.IsNullOrWhiteSpace(PassCode)) || PassCode.Length < MinPasscodeLength){
+            }else if((TrialClient.PassCode.Length < MinPasscodeLength && string.IsNullOrWhiteSpace(TrialClient.PassCode)) || TrialClient.PassCode.Length < MinPasscodeLength){
                      ResponseMessage = "Password you entered is too short and/or contains whitespaces"+"\n"+
                                         "Please re-enter a password in accordance to the guidelines.";
 

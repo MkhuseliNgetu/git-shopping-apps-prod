@@ -11,13 +11,13 @@ using System.Collections.Generic;
 using MongoDB.Bson;
 using MongoDB.Driver;
 using git_shopping_apps_prod.AdditionalServices;
+using git_shopping_apps_prod.Databases.Models;
 
 namespace SyanStudios.gitshoppingappsprod.login
 {
 
     public static class git_shopping_apps_prod_main_login
     {
-        public static IDictionary<string, byte> UA = new Dictionary<string, byte>();
         private static readonly string AtlasDBConnectionString = Environment.GetEnvironmentVariable("ConnectionStrings:NoSQLConnectionString");
         private static MongoClient MongoDBClient;
         public static IMongoDatabase NightCityLab;
@@ -34,11 +34,12 @@ namespace SyanStudios.gitshoppingappsprod.login
             var FormData = await req.ReadFormAsync();
 
             //Error Handling, should the user want to send data via query parameters
-            IDictionary<string, string> UserRegistrationAttempts = req.GetQueryParameterDictionary();
+            IDictionary<string, string> UserLoginAttempts = req.GetQueryParameterDictionary();
 
             //HTTP Request Bodies
-            string UserName = FormData["Username"];
-            string PassCode = FormData["Passcode"];
+            Clients ExistingClient = new Clients();
+            ExistingClient.UserName = FormData["Username"];
+            ExistingClient.PassCode = FormData["Passcode"];
 
             //Default Credential Sizes
             int MinUsernameLength = 5;
@@ -47,11 +48,14 @@ namespace SyanStudios.gitshoppingappsprod.login
             //The body of what is being sent back to users.
             string ResponseMessage = "";
 
-            if (UserName.Length >= MinUsernameLength && PassCode.Length >= MinPasscodeLength)
+            if (ExistingClient.UserName != null && ExistingClient.PassCode != null)
             {
 
                 //Password Security
-                var SCREPassCode = BCr.BCrypt.HashPassword(PassCode);
+                var EncryptionType = BCr.HashType.SHA256;
+                int SaltRounds = 10;
+                var DefaultSalt = BCr.BCrypt.GenerateSalt(15);
+                var SCREPassCode = BCr.BCrypt.HashPassword(ExistingClient.PassCode, DefaultSalt);
 
                 //Token Assignment
                 AuthTokens JWTAssignment = new AuthTokens();
@@ -62,26 +66,24 @@ namespace SyanStudios.gitshoppingappsprod.login
                 NightCityLab = MongoDBClient.GetDatabase("NightCityLab");
                 NCLCollection = NightCityLab.GetCollection<BsonDocument>("Clients");
 
-                BsonDocument ExistingClient = new BsonDocument { { "ClientUsername", UserName }, { "ClientPasscode", PassCode } };
-
                 var ExistingUserFilter = Builders<BsonDocument>.Filter;
-                var ExistingUserQuery = ExistingUserFilter.Eq("ClientUsername", UserName) & ExistingUserFilter.Eq("ClientPasscode", PassCode);
+                var ExistingUserQuery = ExistingUserFilter.Eq("ClientUsername", ExistingClient.UserName);
 
-                var SearchOutcome = NCLCollection.Find(ExistingUserQuery).FirstOrDefault();
+                BsonDocument SearchOutcome = NCLCollection.Find(ExistingUserQuery).FirstOrDefault();
 
-                if (SearchOutcome != null)
+                if (SearchOutcome != null && BCr.BCrypt.Verify(ExistingClient.PassCode, SearchOutcome.GetElement(2).Value.ToString()) == true)
                 {
                     
                     ResponseMessage = "Login Successful!";
                     return new OkObjectResult(ResponseMessage);
 
                 }
-                else
+                else if (SearchOutcome != null && BCr.BCrypt.Verify(ExistingClient.PassCode, SearchOutcome.GetElement(2).Value.ToString()) == false)
                 {
                     ResponseMessage = "Error: Incorrect Username/Password. Please re-enter a valid username/password";
-                    UserRegistrationAttempts.Add(UserName, PassCode);
+                    UserLoginAttempts.Add(ExistingClient.UserName, ExistingClient.PassCode);
 
-                    if (UserRegistrationAttempts.Count == 3)
+                    if (UserLoginAttempts.Count == 3)
                     {
                         ResponseMessage = "Error: Too Many Login Attempts!. Shutting Down";
                         await Task.Delay(5000);
@@ -92,7 +94,7 @@ namespace SyanStudios.gitshoppingappsprod.login
                 }
 
             }
-            else if ((UserName.Length < MinUsernameLength && string.IsNullOrWhiteSpace(UserName)) || UserName.Length < MinUsernameLength)
+            else if ((ExistingClient.UserName.Length < MinUsernameLength && string.IsNullOrWhiteSpace(ExistingClient.UserName)) || ExistingClient.UserName.Length < MinUsernameLength)
             {
                 ResponseMessage = "Username you entered is too short and/or contains whitespaces." + "\n" +
                                    "Please re-enter a username in accordance to the guidelines.";
@@ -100,7 +102,7 @@ namespace SyanStudios.gitshoppingappsprod.login
                 return new BadRequestObjectResult(ResponseMessage);
 
             }
-            else if ((PassCode.Length < MinPasscodeLength && string.IsNullOrWhiteSpace(PassCode)) || PassCode.Length < MinPasscodeLength)
+            else if ((ExistingClient.PassCode.Length < MinPasscodeLength && string.IsNullOrWhiteSpace(ExistingClient.PassCode)) || ExistingClient.PassCode.Length < MinPasscodeLength)
             {
                 ResponseMessage = "Password you entered is too short and/or contains whitespaces" + "\n" +
                                    "Please re-enter a password in accordance to the guidelines.";

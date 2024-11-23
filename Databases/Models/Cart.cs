@@ -7,12 +7,13 @@ using System.Threading.Tasks;
 
 namespace git_shopping_apps_prod.Databases.Models
 {
-    internal class Clients
+    internal class Cart
     {
-        public string _id { get; set; }
-        [MinLength(5)]
-        public string UserName { get; set; }
-        [MinLength(8)]
-        public string PassCode { get; set; }
+        [MinLength(7)]
+        public string CartID { get; set; }
+
+        [MinLength(1)]
+        public Dictionary<string, string[]> CartProducts { get; set; }
+
     }
 }
