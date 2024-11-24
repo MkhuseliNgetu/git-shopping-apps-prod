@@ -18,7 +18,7 @@ namespace git_shopping_apps_prod.AdditionalServices
 
             //Token Development 
             var TokenHandler = new JwtSecurityTokenHandler();
-            var TokenKey = Encoding.ASCII.GetBytes("OuterHeaven Authenticated");
+            var TokenKey = Encoding.ASCII.GetBytes("Syan Studios Authenticated");
             var TokenDetails = new SecurityTokenDescriptor
             {
                 Subject = new ClaimsIdentity(new Claim[]

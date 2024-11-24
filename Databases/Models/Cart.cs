@@ -9,8 +9,8 @@ namespace git_shopping_apps_prod.Databases.Models
 {
     internal class Cart
     {
-        [MinLength(7)]
-        public string CartID { get; set; }
+        [MinLength(32)]
+        public byte[] CartID { get; set; }
 
         [MinLength(1)]
         public Dictionary<string, string[]> CartProducts { get; set; }

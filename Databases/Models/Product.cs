@@ -9,7 +9,7 @@ namespace git_shopping_apps_prod.Databases.Models
 {
     internal class Product
     {
-        [MinLength(7)]
+        [MinLength(32)]
         public string ProductID { get; set; }
         [MinLength(3)]
         public string ProductName { get; set; }
@@ -19,6 +19,8 @@ namespace git_shopping_apps_prod.Databases.Models
         public string ProductColor { get; set; }
         [MinLength(2)]
         public int ProductSize { get; set; }
+        [MinLength(2)]
+        public bool ProductSpecialDiscountStatus { get; set; }
         [MinLength(2)]
         public decimal ProductSpecialDiscount { get; set; }
     }
